@@ -10,6 +10,7 @@ const regions: Record<string, string> = {
 };
 
 let tokenCache: { value: string; expiresAt: number } | null = null;
+let deviceOnlineCache: { deviceId: string; online: boolean | null; error: string | null; expiresAt: number } | null = null;
 
 function env(name: string): string {
   return Deno.env.get(name)?.trim() ?? '';
@@ -129,6 +130,32 @@ function metricValue(status: Array<{ code: string; value: unknown }>, codeName: 
   return Number.isFinite(factor) ? Number(point.value) * factor : null;
 }
 
+async function getDeviceOnline(deviceId: string): Promise<{ online: boolean | null; error: string | null }> {
+  if (deviceOnlineCache?.deviceId === deviceId && deviceOnlineCache.expiresAt > Date.now()) {
+    return { online: deviceOnlineCache.online, error: deviceOnlineCache.error };
+  }
+  const errors: string[] = [];
+  for (const requestPath of [
+    `/v1.0/iot-02/devices/${encodeURIComponent(deviceId)}`,
+    `/v1.0/devices/${encodeURIComponent(deviceId)}`
+  ]) {
+    try {
+      const details = await authenticatedTuyaRequest('GET', requestPath);
+      if (typeof details?.online === 'boolean') {
+        deviceOnlineCache = { deviceId, online: details.online, error: null, expiresAt: Date.now() + 30000 };
+        return { online: details.online, error: null };
+      }
+      errors.push('Properti online tidak tersedia pada detail perangkat Tuya.');
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const message = errors.join('; ');
+  console.warn('Status online perangkat tidak dapat diverifikasi dari Tuya.', message);
+  deviceOnlineCache = { deviceId, online: null, error: message, expiresAt: Date.now() + 30000 };
+  return { online: null, error: message };
+}
+
 async function getDeviceStatus() {
   const deviceId = env('TUYA_DEVICE_ID');
   if (!deviceId) throw new Error('Device ID Tuya belum dikonfigurasi.');
@@ -139,10 +166,7 @@ async function getDeviceStatus() {
   if (!Array.isArray(result)) throw new Error('Format status perangkat Tuya tidak dikenali.');
   const switchPoint = result.find((item: { code?: string }) => item.code === (env('TUYA_SWITCH_DP') || 'switch'));
   if (!switchPoint) throw new Error('DP sakelar tidak ditemukan. Periksa TUYA_SWITCH_DP.');
-  const onlinePoint = result.find((item: { code?: string }) => item.code === 'online_state');
-  const deviceOnline = onlinePoint
-    ? ['online', 'true', '1', 'on'].includes(String(onlinePoint.value).toLowerCase())
-    : null;
+  const { online: deviceOnline, error: deviceOnlineError } = await getDeviceOnline(deviceId);
   const breakerOn = switchPoint.value === true || switchPoint.value === 1 ||
     switchPoint.value === 'true' || switchPoint.value === 'on'
     ? true
@@ -153,6 +177,7 @@ async function getDeviceStatus() {
   return {
     breakerOn,
     deviceOnline,
+    deviceOnlineError,
     availableDpCodes: result.map((item: { code?: unknown }) => item.code).filter((code: unknown): code is string => typeof code === 'string'),
     values: {
       voltage: metricValue(result, 'TUYA_VOLTAGE_DP', 'TUYA_VOLTAGE_FACTOR'),

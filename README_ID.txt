@@ -80,6 +80,10 @@ AKSES JARAK JAUH DENGAN SUPABASE
   Tuya Cloud yang sama. Jangan kirim Access Secret melalui chat. Pastikan project
   Tuya menggunakan data center yang sama dengan TUYA_REGION dan telah diberi izin
   API serta akses ke perangkat.
+- Status online perangkat diverifikasi lewat properti `online` pada API detail
+  perangkat Tuya; nilai DP `online_state` tidak dipakai sebagai status koneksi.
+  Jika API detail tidak menyediakan properti tersebut, dashboard tetap menerima
+  data perangkat dan menandai status koneksi sebagai belum diketahui.
 - Variabel SUPABASE_URL dan SUPABASE_ANON_KEY tersedia otomatis untuk Edge Function.
   Jangan mengatur atau menaruh service-role key di frontend.
 - Dari folder proyek, login dan tautkan Supabase CLI, lalu deploy fungsi:

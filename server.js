@@ -83,6 +83,7 @@ function signRequest(method, requestPath, body, accessToken = '') {
 }
 
 let tokenCache = null;
+let deviceOnlineCache = null;
 
 async function tuyaRequest(method, requestPath, body, accessToken = '') {
   const settings = config();
@@ -136,6 +137,32 @@ function metricValue(status, codeName, factorName) {
   return Number.isFinite(factor) ? Number(point.value) * factor : null;
 }
 
+async function getDeviceOnline(deviceId) {
+  if (deviceOnlineCache?.deviceId === deviceId && deviceOnlineCache.expiresAt > Date.now()) {
+    return { online: deviceOnlineCache.online, error: deviceOnlineCache.error };
+  }
+  const errors = [];
+  for (const requestPath of [
+    `/v1.0/iot-02/devices/${encodeURIComponent(deviceId)}`,
+    `/v1.0/devices/${encodeURIComponent(deviceId)}`
+  ]) {
+    try {
+      const details = await authenticatedRequest('GET', requestPath);
+      if (typeof details?.online === 'boolean') {
+        deviceOnlineCache = { deviceId, online: details.online, error: null, expiresAt: Date.now() + 30000 };
+        return { online: details.online, error: null };
+      }
+      errors.push('Properti online tidak tersedia pada detail perangkat Tuya.');
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  const message = errors.join('; ');
+  console.warn('Status online perangkat tidak dapat diverifikasi dari Tuya.', message);
+  deviceOnlineCache = { deviceId, online: null, error: message, expiresAt: Date.now() + 30000 };
+  return { online: null, error: message };
+}
+
 function parseSwitch(value) {
   if (value === true || value === 1 || value === 'true' || value === 'on') return true;
   if (value === false || value === 0 || value === 'false' || value === 'off') return false;
@@ -151,13 +178,11 @@ async function getDeviceStatus() {
   if (!Array.isArray(result)) throw new Error('Format status perangkat dari Tuya tidak dikenali.');
   const switchPoint = result.find(item => item.code === settings.switchCode);
   if (!switchPoint) throw new Error(`Data point sakelar "${settings.switchCode}" tidak ditemukan. Periksa TUYA_SWITCH_DP.`);
-  const onlinePoint = result.find(item => item.code === 'online_state');
-  const deviceOnline = onlinePoint
-    ? ['online', 'true', '1', 'on'].includes(String(onlinePoint.value).toLowerCase())
-    : null;
+  const { online: deviceOnline, error: deviceOnlineError } = await getDeviceOnline(settings.deviceId);
   return {
     breakerOn: parseSwitch(switchPoint.value),
     deviceOnline,
+    deviceOnlineError,
     availableDpCodes: result.map(item => item.code).filter(code => typeof code === 'string'),
     values: {
       voltage: metricValue(result, 'TUYA_VOLTAGE_DP', 'TUYA_VOLTAGE_FACTOR'),
