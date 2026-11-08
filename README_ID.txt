@@ -84,8 +84,9 @@ AKSES JARAK JAUH DENGAN SUPABASE
   persis sama dengan salah satu origin APP_ORIGINS. Fungsi memvalidasi JWT dan
   hanya menerima UUID akun yang diizinkan.
 - Setelah workflow selesai, buka dashboard dan login dengan akun pemilik.
-  Jika lupa kata sandi, pilih "Lupa kata sandi?" pada dashboard, gunakan tautan
-  yang dikirim ke email, lalu tetapkan kata sandi baru pada halaman VoltGuard.
+  Status dan metrik Tuya dapat dibaca publik tanpa login; siapa pun yang memiliki
+  URL dapat melihatnya. Tombol ON/OFF tetap memerlukan sesi pengguna pemilik,
+  yang dapat dimulai dengan tautan login email tanpa password.
   Status Tuya diperiksa setiap 3 detik selama tab dashboard terbuka dan terlihat.
   Ini polling, bukan push instan; dapat mencapai 28.800 pembacaan status per hari
   untuk satu tab yang terus aktif dan bisa terkena batas/kuota Tuya atau Supabase.
@@ -102,6 +103,9 @@ AKSES JARAK JAUH DENGAN SUPABASE
   berganti atau perangkat harus menyediakan DP konsumsi harian.
 - Grafik konsumsi dan tabel riwayat pada versi ini masih data demo; polling status
   tidak membentuk riwayat historis.
+- Endpoint status publik tetap dibatasi ke origin GitHub Pages melalui CORS, tetapi
+  data live tidak rahasia setelah dibagikan pada situs publik. Endpoint switch tetap
+  memvalidasi JWT dan ALLOWED_USER_ID di backend.
 
 BACKEND TUYA LOKAL
 - Gunakan Node.js 18 atau lebih baru; backend tidak memerlukan dependency npm tambahan.

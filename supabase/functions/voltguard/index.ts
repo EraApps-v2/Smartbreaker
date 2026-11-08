@@ -173,39 +173,38 @@ async function handleRequest(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(origin) });
   if (req.method !== 'POST') return jsonResponse(origin, 405, { error: 'Method tidak diizinkan.' });
 
-  const supabaseUrl = env('SUPABASE_URL');
-  const supabaseAnonKey = env('SUPABASE_ANON_KEY');
-  const allowedUserId = env('ALLOWED_USER_ID');
-  if (!supabaseUrl || !supabaseAnonKey || !allowedUserId) {
-    return jsonResponse(origin, 503, { error: 'Autentikasi backend belum dikonfigurasi.' });
-  }
-
-  const authorization = req.headers.get('authorization') ?? '';
-  const accessToken = authorization.replace(/^Bearer\s+/i, '');
-  if (!accessToken) return jsonResponse(origin, 401, { error: 'Login diperlukan.' });
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  if (authError || !user || user.id !== allowedUserId) {
-    return jsonResponse(origin, 403, { error: 'Akun ini tidak diizinkan mengakses perangkat.' });
-  }
-
   try {
     const body = await req.json();
     if (body?.action === 'status') return jsonResponse(origin, 200, await getDeviceStatus());
-    if (body?.action === 'switch') {
-      if (typeof body.on !== 'boolean') return jsonResponse(origin, 400, { error: 'Nilai sakelar tidak valid.' });
-      const deviceId = env('TUYA_DEVICE_ID');
-      if (!deviceId) throw new Error('Device ID Tuya belum dikonfigurasi.');
-      const result = await authenticatedTuyaRequest(
-        'POST',
-        `/v1.0/iot-03/devices/${encodeURIComponent(deviceId)}/commands`,
-        { commands: [{ code: env('TUYA_SWITCH_DP') || 'switch', value: body.on }] }
-      );
-      return jsonResponse(origin, 200, { ok: true, requestedOn: body.on, result });
+    if (body?.action !== 'switch') return jsonResponse(origin, 400, { error: 'Aksi tidak dikenali.' });
+    if (typeof body.on !== 'boolean') return jsonResponse(origin, 400, { error: 'Nilai sakelar tidak valid.' });
+
+    const supabaseUrl = env('SUPABASE_URL');
+    const supabaseAnonKey = env('SUPABASE_ANON_KEY');
+    const allowedUserId = env('ALLOWED_USER_ID');
+    if (!supabaseUrl || !supabaseAnonKey || !allowedUserId) {
+      return jsonResponse(origin, 503, { error: 'Autentikasi backend belum dikonfigurasi.' });
     }
-    return jsonResponse(origin, 400, { error: 'Aksi tidak dikenali.' });
+
+    const authorization = req.headers.get('authorization') ?? '';
+    const accessToken = authorization.replace(/^Bearer\s+/i, '');
+    if (!accessToken) return jsonResponse(origin, 401, { error: 'Login diperlukan untuk mengontrol perangkat.' });
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    if (authError || !user || user.id !== allowedUserId) {
+      return jsonResponse(origin, 403, { error: 'Akun ini tidak diizinkan mengontrol perangkat.' });
+    }
+
+    const deviceId = env('TUYA_DEVICE_ID');
+    if (!deviceId) throw new Error('Device ID Tuya belum dikonfigurasi.');
+    const result = await authenticatedTuyaRequest(
+      'POST',
+      `/v1.0/iot-03/devices/${encodeURIComponent(deviceId)}/commands`,
+      { commands: [{ code: env('TUYA_SWITCH_DP') || 'switch', value: body.on }] }
+    );
+    return jsonResponse(origin, 200, { ok: true, requestedOn: body.on, result });
   } catch (error) {
     const failure = error as Error & { cause?: { code?: string } };
     const causeCode = failure.cause?.code;

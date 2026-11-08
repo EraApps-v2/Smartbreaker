@@ -31,7 +31,7 @@
       <header class="topbar">
         <button class="mobile-menu" id="menuBtn" aria-label="Buka menu">☰</button>
         <div><p class="eyebrow">SMART HOME / MONITORING</p><h1 id="pageTitle">Dashboard energi</h1></div>
-        <div class="top-actions"><span class="live-pill"><span class="dot"></span> <span id="liveStatus">DEMO DATA</span></span><button class="icon-btn" id="refreshBtn" aria-label="Refresh data">↻</button><button class="logout-btn hidden" id="logoutBtn" type="button">Keluar</button></div>
+        <div class="top-actions"><span class="live-pill"><span class="dot"></span> <span id="liveStatus">DEMO DATA</span></span><button class="icon-btn" id="refreshBtn" aria-label="Refresh data">↻</button><button class="logout-btn hidden" id="authLoginBtn" type="button">Login untuk kontrol</button><button class="logout-btn hidden" id="logoutBtn" type="button">Keluar</button></div>
       </header>
 
       <section class="page" id="overviewPage">
@@ -90,41 +90,18 @@
       <p>Dashboard online ini belum dikonfigurasi. Admin perlu mengisi variabel SUPABASE_URL dan SUPABASE_ANON_KEY pada GitHub repository, lalu menjalankan ulang deployment. Data demo dan kontrol perangkat tidak tersedia sebelum konfigurasi selesai.</p>
     </article>
     <form class="cloud-login-card" id="loginForm">
+      <button class="text-btn close-login-btn" id="closeLoginBtn" type="button" aria-label="Tutup login">Tutup</button>
       <span class="overline">AKSES AMAN</span>
-      <h2 id="cloudLoginTitle">Login ke VoltGuard</h2>
-      <p>Gunakan akun yang diizinkan untuk membaca dan mengontrol breaker Anda. Data diperbarui setiap 3 detik saat halaman terbuka.</p>
+      <h2 id="cloudLoginTitle">Login untuk kontrol</h2>
+      <p>Masukkan email akun pemilik. Supabase akan mengirim tautan login; status Tuya dapat dilihat tanpa login, tetapi kontrol breaker tetap dilindungi.</p>
       <label for="loginEmail">Email</label>
       <input id="loginEmail" type="email" autocomplete="username" required>
-      <label for="loginPassword">Kata sandi</label>
-      <input id="loginPassword" type="password" autocomplete="current-password" required>
-      <button class="primary-btn" id="loginSubmit" type="submit">Masuk</button>
-      <button class="text-btn" id="forgotPasswordBtn" type="button">Lupa kata sandi?</button>
+      <button class="primary-btn" id="loginSubmit" type="submit">Kirim tautan login</button>
       <p class="login-message" id="loginMessage" role="status" aria-live="polite"></p>
-    </form>
-    <form class="cloud-login-card hidden" id="recoveryRequestForm">
-      <span class="overline">PEMULIHAN AKUN</span>
-      <h2>Atur ulang kata sandi</h2>
-      <p>Masukkan email akun VoltGuard. Jika terdaftar, tautan pemulihan akan dikirim melalui email.</p>
-      <label for="recoveryEmail">Email</label>
-      <input id="recoveryEmail" type="email" autocomplete="username" required>
-      <button class="primary-btn" id="recoverySubmit" type="submit">Kirim tautan pemulihan</button>
-      <button class="text-btn" id="backToLoginBtn" type="button">Kembali ke login</button>
-      <p class="login-message" id="recoveryMessage" role="status" aria-live="polite"></p>
-    </form>
-    <form class="cloud-login-card hidden" id="passwordRecoveryForm">
-      <span class="overline">PEMULIHAN AKUN</span>
-      <h2>Buat kata sandi baru</h2>
-      <p>Masukkan kata sandi baru untuk akun VoltGuard Anda.</p>
-      <label for="newPassword">Kata sandi baru</label>
-      <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
-      <label for="confirmNewPassword">Ulangi kata sandi baru</label>
-      <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" required>
-      <button class="primary-btn" id="passwordRecoverySubmit" type="submit">Simpan kata sandi baru</button>
-      <p class="login-message" id="passwordRecoveryMessage" role="status" aria-live="polite"></p>
     </form>
   </section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-backdrop hidden" id="confirmModal"><div class="modal"><div class="modal-icon">⚠</div><h2 id="modalTitle">Konfirmasi</h2><p id="modalText">Lanjutkan tindakan ini?</p><div class="modal-actions"><button class="control-btn cancel-btn" id="cancelModal">Batal</button><button class="control-btn on-btn" id="confirmAction">Konfirmasi</button></div></div></div>
-  <script type="module" src="app.js?v=online-password-recovery-v1"></script>
+  <script type="module" src="app.js?v=public-live-email-login-v1"></script>
 </body>
 </html>

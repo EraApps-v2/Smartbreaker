@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase-client.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let breakerOn = true, toastTimer, tuyaConfigured = Boolean(supabaseClient), tuyaConnected = false, tuyaDeviceOnline = null, tuyaValues = null, availableDpCodes = [], commandPending = false, authSession = null, refreshPending = false, lastStatusAt = null, passwordRecoveryMode = new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery', recoveryRequestMode = false;
+let breakerOn = true, toastTimer, tuyaConfigured = Boolean(supabaseClient), tuyaConnected = false, tuyaDeviceOnline = null, tuyaValues = null, availableDpCodes = [], commandPending = false, authSession = null, refreshPending = false, lastStatusAt = null, loginOpen = false, loginRequestPending = false;
 const demo = {
   voltage: 220.4, current: 1.94, power: 428, energy: 4.82, tariff: 1444.70,
   week: [3.8,4.6,3.9,5.2,4.1,5.4,5.4],
@@ -124,7 +124,8 @@ function renderState(){
   }
   $('#deviceSubtext').textContent=`${tuyaConnected?'Tuya':tuyaConfigured?'Tuya offline':'Mode demo'} · status ${visibleState}`;
   $('#demoTag').textContent=tuyaConnected?'TUYA LIVE':tuyaConfigured?'OFFLINE':'SIMULASI';
-  $('#quickControlNote').textContent=tuyaConnected?'Kontrol fisik aktif melalui Tuya':tuyaConfigured?'Menunggu koneksi Tuya; tombol dinonaktifkan':'Kontrol fisik belum diaktifkan';
+  $('#quickControlNote').textContent=tuyaConnected&&!authSession?'Status live publik · login email diperlukan untuk kontrol'
+    :tuyaConnected?'Kontrol fisik aktif melalui Tuya':tuyaConfigured?'Menunggu koneksi Tuya; tombol dinonaktifkan':'Kontrol fisik belum diaktifkan';
   const missingMetrics=tuyaValues&&['voltage','current','power','energy'].some(key=>tuyaValues[key]===null||tuyaValues[key]===undefined);
   $('#metricsSubtext').textContent=tuyaConnected
     ?tuyaDeviceOnline===false?'Perangkat offline; data live tidak tersedia'
@@ -138,9 +139,12 @@ function renderState(){
     :tuyaConfigured?'Breaker belum terhubung. Periksa konfigurasi dan koneksi backend.'
       :'Perangkat belum ditautkan; informasi yang tampil adalah data simulasi.';
   $('#deviceDetailStatus').textContent=tuyaConnected?(tuyaDeviceOnline===false?'● Perangkat offline':'● Terhubung'):tuyaConfigured?'● Offline':'● Mode demo';
-  $('#deviceDetailApi').textContent=tuyaConnected&&tuyaDeviceOnline!==false?'Kontrol aktif':tuyaConfigured?'Kontrol nonaktif':'API belum dikonfigurasi';
+  $('#deviceDetailApi').textContent=tuyaConnected&&tuyaDeviceOnline!==false
+    ?authSession?'Kontrol aktif':'Status publik · login untuk kontrol'
+    :tuyaConfigured?'Kontrol nonaktif':'API belum dikonfigurasi';
   $('#safetyNote').textContent=tuyaConnected&&tuyaDeviceOnline!==false
-    ?'Kontrol terhubung ke Tuya. Pastikan breaker yang benar; aplikasi ini bukan sarana pemutus darurat.'
+    ?authSession?'Kontrol terhubung ke Tuya. Pastikan breaker yang benar; aplikasi ini bukan sarana pemutus darurat.'
+      :'Status perangkat dapat dilihat publik. Login melalui tautan email untuk mengubah sakelar.'
     :tuyaConnected&&tuyaDeviceOnline===false?'Perangkat Tuya offline. Data dapat kedaluwarsa dan kontrol dinonaktifkan.'
       :tuyaConfigured?'Status breaker tidak tersedia. Kontrol dinonaktifkan sampai koneksi pulih.'
       :'Pratinjau simulasi. Hubungkan backend Tuya untuk mengaktifkan kontrol fisik.';
@@ -155,24 +159,25 @@ function updateConnection(){
   updateControls();
 }
 function updateControls(){
-  const disabled=!tuyaConnected||tuyaDeviceOnline===false||commandPending;
+  const disabled=!tuyaConnected||tuyaDeviceOnline===false||commandPending||Boolean(supabaseClient&&!authSession);
   ['#onBtn','#offBtn','#quickOn','#quickOff'].forEach(selector=>{
     const button=$(selector);
     if(button)button.disabled=disabled;
   });
+  const loginButton=$('#authLoginBtn');
+  if(loginButton)loginButton.classList.toggle('hidden',!supabaseClient||Boolean(authSession));
 }
 function updateAuthUi(){
   const loginPanel=$('#cloudLogin');
   const isHosted=httpsLocation();
-  const hideAuthPanel=!supabaseClient||Boolean(authSession)&&!passwordRecoveryMode;
-  if(loginPanel)loginPanel.classList.toggle('hidden',isHosted?hideAuthPanel:!supabaseClient||Boolean(authSession));
-  $('#loginForm')?.classList.toggle('hidden',!supabaseClient||Boolean(authSession)||passwordRecoveryMode||recoveryRequestMode);
-  $('#recoveryRequestForm')?.classList.toggle('hidden',!supabaseClient||Boolean(authSession)||passwordRecoveryMode||!recoveryRequestMode);
-  $('#passwordRecoveryForm')?.classList.toggle('hidden',!supabaseClient||!passwordRecoveryMode);
+  if(loginPanel)loginPanel.classList.toggle('hidden',!supabaseClient||Boolean(authSession)||!loginOpen);
+  $('#loginForm')?.classList.toggle('hidden',!supabaseClient||Boolean(authSession));
   const configMessage=$('#cloudConfigMessage');
   if(configMessage)configMessage.classList.toggle('hidden',!isHosted||Boolean(supabaseClient));
   const logoutButton=$('#logoutBtn');
   if(logoutButton)logoutButton.classList.toggle('hidden',!supabaseClient||!authSession);
+  const loginButton=$('#authLoginBtn');
+  if(loginButton)loginButton.classList.toggle('hidden',!supabaseClient||Boolean(authSession));
 }
 function httpsLocation(){
   return location.protocol==='https:'&&!['localhost','127.0.0.1'].includes(location.hostname);
@@ -187,7 +192,7 @@ function applyUserSettings(session){
 }
 async function callTuya(action, details={}){
   if(supabaseClient){
-    if(!authSession)throw new Error('Silakan login untuk mengakses perangkat.');
+    if(action==='switch'&&!authSession)throw new Error('Login melalui tautan email diperlukan untuk mengontrol perangkat.');
     const {data,error}=await supabaseClient.functions.invoke('voltguard',{body:{action,...details}});
     if(error){
       let message=error.message||'Permintaan ke backend Supabase gagal.';
@@ -210,7 +215,6 @@ async function callTuya(action, details={}){
 }
 async function refreshTuya(showFeedback=false){
   if(refreshPending)return false;
-  if(supabaseClient&&!authSession)return false;
   refreshPending=true;
   try{
     if(!supabaseClient){
@@ -265,6 +269,7 @@ function setPage(name){
   $('.sidebar').classList.remove('open');
 }
 function requestToggle(on){
+  if(supabaseClient&&!authSession){loginOpen=true;updateAuthUi();showToast('Login melalui tautan email diperlukan untuk mengontrol perangkat.');return}
   if(!tuyaConnected){showToast('Kontrol fisik belum aktif. Hubungkan backend Tuya dan pastikan status perangkat terbaca.');return}
   if(tuyaDeviceOnline===false){showToast('Perangkat Tuya offline. Kontrol dinonaktifkan.');return}
   if(on===breakerOn){showToast(`Breaker ${tuyaConnected?'Tuya':'demo'} sudah ${on?'ON':'OFF'}.`);return}
@@ -359,78 +364,38 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigat
 
 $('#quickOn').addEventListener('click',()=>requestToggle(true));
 $('#quickOff').addEventListener('click',()=>requestToggle(false));
+$('#authLoginBtn')?.addEventListener('click',()=>{
+  loginOpen=true;
+  updateAuthUi();
+});
+$('#closeLoginBtn')?.addEventListener('click',()=>{
+  loginOpen=false;
+  updateAuthUi();
+});
+$('#cloudLogin')?.addEventListener('click',event=>{
+  if(event.target.id==='cloudLogin'){
+    loginOpen=false;
+    updateAuthUi();
+  }
+});
 $('#loginForm')?.addEventListener('submit',async event=>{
   event.preventDefault();
   const submit=$('#loginSubmit');
   const message=$('#loginMessage');
   submit.disabled=true;
-  message.textContent='Menghubungkan...';
+  message.textContent='Mengirim tautan login...';
   try{
-    const {error}=await supabaseClient.auth.signInWithPassword({
+    const {error}=await supabaseClient.auth.signInWithOtp({
       email:$('#loginEmail').value.trim(),
-      password:$('#loginPassword').value
+      options:{
+        shouldCreateUser:false,
+        emailRedirectTo:`${location.origin}${location.pathname}`
+      }
     });
     if(error)throw error;
-    $('#loginPassword').value='';
-    message.textContent='';
+    message.textContent='Tautan login dikirim. Buka email Anda dan klik tautan pada perangkat ini.';
   }catch(error){
-    message.textContent=error.message?.toLowerCase().includes('invalid login credentials')
-      ?'Email atau kata sandi tidak cocok. Gunakan “Lupa kata sandi?” untuk membuat kata sandi baru.'
-      :error.message||'Login gagal. Periksa email dan kata sandi.';
-  }finally{
-    submit.disabled=false;
-  }
-});
-$('#forgotPasswordBtn')?.addEventListener('click',()=>{
-  recoveryRequestMode=true;
-  $('#recoveryEmail').value=$('#loginEmail').value.trim();
-  $('#recoveryMessage').textContent='';
-  updateAuthUi();
-});
-$('#backToLoginBtn')?.addEventListener('click',()=>{
-  recoveryRequestMode=false;
-  updateAuthUi();
-});
-$('#recoveryRequestForm')?.addEventListener('submit',async event=>{
-  event.preventDefault();
-  const submit=$('#recoverySubmit');
-  const message=$('#recoveryMessage');
-  submit.disabled=true;
-  message.textContent='Mengirim tautan pemulihan...';
-  try{
-    const {error}=await supabaseClient.auth.resetPasswordForEmail($('#recoveryEmail').value.trim(),{
-      redirectTo:`${location.origin}${location.pathname}`
-    });
-    if(error)throw error;
-    message.textContent='Jika email terdaftar, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.';
-  }catch(error){
-    message.textContent=`Gagal mengirim tautan pemulihan: ${error.message}`;
-  }finally{
-    submit.disabled=false;
-  }
-});
-$('#passwordRecoveryForm')?.addEventListener('submit',async event=>{
-  event.preventDefault();
-  const submit=$('#passwordRecoverySubmit');
-  const message=$('#passwordRecoveryMessage');
-  const password=$('#newPassword').value;
-  if(password!==$('#confirmNewPassword').value){
-    message.textContent='Konfirmasi kata sandi tidak sama.';
-    return;
-  }
-  submit.disabled=true;
-  message.textContent='Menyimpan kata sandi baru...';
-  try{
-    const {error}=await supabaseClient.auth.updateUser({password});
-    if(error)throw error;
-    $('#newPassword').value='';
-    $('#confirmNewPassword').value='';
-    passwordRecoveryMode=false;
-    recoveryRequestMode=false;
-    message.textContent='Kata sandi berhasil diperbarui. Anda sudah masuk ke dashboard.';
-    updateAuthUi();
-  }catch(error){
-    message.textContent=`Gagal memperbarui kata sandi: ${error.message}`;
+    message.textContent=`Gagal mengirim tautan login: ${error.message||'Periksa email dan pengaturan email Supabase.'}`;
   }finally{
     submit.disabled=false;
   }
@@ -448,9 +413,9 @@ if(supabaseClient){
   applyUserSettings(authSession);
   updateAuthUi();
   if(authSession)refreshTuya(false);
-  supabaseClient.auth.onAuthStateChange((event,nextSession)=>{
-    if(event==='PASSWORD_RECOVERY')passwordRecoveryMode=true;
+  supabaseClient.auth.onAuthStateChange((_event,nextSession)=>{
     authSession=nextSession;
+    if(authSession)loginOpen=false;
     applyUserSettings(authSession);
     tuyaConnected=false;
     tuyaDeviceOnline=null;
