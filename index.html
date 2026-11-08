@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1324">
+  <meta name="description" content="Dashboard monitoring Smart Breaker Tuya">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .control-btn:disabled,.quick-toggle button:disabled{cursor:not-allowed;opacity:.5}
+  </style>
+  <title>VoltGuard — Smart Breaker</title>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">ϟ</div><div><strong>VoltGuard</strong><small>SMART ENERGY</small></div></div>
+      <div class="nav-label">MENU UTAMA</div>
+      <button class="nav-item active" data-page="overview"><span>▦</span> Dashboard</button>
+      <button class="nav-item" data-page="history"><span>▤</span> Riwayat energi</button>
+      <button class="nav-item" data-page="devices"><span>▣</span> Perangkat</button>
+      <div class="sidebar-bottom">
+        <div class="connection"><span class="dot"></span><div><b id="connectionTitle">Mode demo</b><small id="connectionSubtext">Belum terhubung ke Tuya</small></div></div>
+        <div class="profile"><div class="avatar">VG</div><div><b>Pengguna</b><small>Smart Home</small></div><span class="more">•••</span></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="mobile-menu" id="menuBtn" aria-label="Buka menu">☰</button>
+        <div><p class="eyebrow">SMART HOME / MONITORING</p><h1 id="pageTitle">Dashboard energi</h1></div>
+        <div class="top-actions"><span class="live-pill"><span class="dot"></span> <span id="liveStatus">DEMO DATA</span></span><button class="icon-btn" id="refreshBtn" aria-label="Refresh data">↻</button><button class="logout-btn hidden" id="logoutBtn" type="button">Keluar</button></div>
+      </header>
+
+      <section class="page" id="overviewPage">
+        <div class="welcome-row"><div><h2>Ringkasan listrik</h2><p>Pantau perangkat dan konsumsi energi dalam satu tempat.</p></div><div class="date-chip" id="todayDate">Hari ini</div></div>
+
+        <div class="hero-grid">
+          <article class="breaker-card">
+            <div class="card-top"><div><span class="overline">SMART BREAKER</span><h2>Breaker Utama</h2><p class="muted">Tuya-compatible device</p></div><div class="breaker-icon">ϟ</div></div>
+            <div class="status-row"><span class="status-badge" id="breakerStatusBadge"><span class="status-dot"></span><span id="breakerStatusText">MENYALA</span></span><span class="demo-tag" id="demoTag">SIMULASI</span></div>
+            <div class="breaker-visual"><div class="ring"><div class="ring-inner"><span class="bolt">ϟ</span><small>BREAKER</small><b id="ringState">ON</b></div></div><div class="switch-info"><span class="muted">Status sakelar</span><strong id="switchLabel">Aktif</strong><small id="switchUpdated">Diperbarui baru saja</small></div></div>
+            <div class="breaker-actions"><button class="control-btn off-btn" id="offBtn" disabled>Matikan</button><button class="control-btn on-btn" id="onBtn" disabled>Nyalakan</button></div>
+            <p class="safety-note" id="safetyNote">Pratinjau simulasi. Hubungkan backend Tuya untuk mengaktifkan kontrol fisik.</p>
+          </article>
+
+          <article class="power-card">
+            <div class="power-head"><div><span class="overline">DAYA SAAT INI</span><div class="power-value"><strong id="powerValue">428</strong><span>W</span></div></div><div class="mini-icon">ϟ</div></div>
+            <div class="power-chart"><div class="chart-grid"></div><svg viewBox="0 0 600 130" preserveAspectRatio="none" aria-label="Grafik daya contoh"><path class="area" d="M0,100 C30,96 40,40 75,58 S130,102 160,72 S210,30 240,55 S290,92 320,66 S360,75 390,35 S445,55 475,40 S530,88 560,45 S585,32 600,24 L600,130 L0,130 Z"></path><path class="line" d="M0,100 C30,96 40,40 75,58 S130,102 160,72 S210,30 240,55 S290,92 320,66 S360,75 390,35 S445,55 475,40 S530,88 560,45 S585,32 600,24"></path></svg></div>
+            <div class="chart-foot"><span><i class="legend-dot"></i> Daya (simulasi)</span><span>60 menit terakhir</span></div>
+          </article>
+        </div>
+
+        <div class="section-heading"><div><h2>Parameter listrik</h2><p id="metricsSubtext">Nilai contoh untuk pratinjau desain</p></div><span class="outline-chip">4 PARAMETER</span></div>
+        <div class="metrics-grid">
+          <article class="metric-card"><div class="metric-top"><span>Tegangan</span><span class="metric-icon purple">⌁</span></div><div class="metric-value"><strong id="voltageValue">220.4</strong><small>V</small></div><div class="metric-foot"><span class="tiny-line purple-line"></span><span>AC voltage</span></div></article>
+          <article class="metric-card"><div class="metric-top"><span>Arus</span><span class="metric-icon blue">↯</span></div><div class="metric-value"><strong id="currentValue">1.94</strong><small>A</small></div><div class="metric-foot"><span class="tiny-line blue-line"></span><span>Current draw</span></div></article>
+          <article class="metric-card"><div class="metric-top"><span>Temperatur</span><span class="metric-icon orange">°C</span></div><div class="metric-value"><strong id="temperatureValue">24.9</strong><small>°C</small></div><div class="metric-foot"><span class="tiny-line orange-line"></span><span>Sensor (jika tersedia)</span></div></article>
+          <article class="metric-card"><div class="metric-top"><span>Pemakaian hari ini</span><span class="metric-icon green">▥</span></div><div class="metric-value"><strong id="energyValue">4.82</strong><small>kWh</small></div><div class="metric-foot"><span class="tiny-line green-line"></span><span id="dailyEnergyNote">Nilai dari DP Tuya</span></div></article>
+          <article class="metric-card"><div class="metric-top"><span>Estimasi biaya hari ini</span><span class="metric-icon orange">Rp</span></div><div class="metric-value"><strong id="costValue">7.000</strong><small>Rp</small></div><div class="metric-foot tariff-row"><label class="tariff-control" for="tariffInput">Tarif Rp/kWh<input id="tariffInput" type="number" min="0" step="0.01" inputmode="decimal" aria-label="Tarif listrik per kWh"></label></div></article>
+        </div>
+
+        <div class="bottom-grid">
+          <article class="panel"><div class="panel-heading"><div><h2>Konsumsi energi</h2><p>Perkiraan pemakaian 7 hari</p></div><select id="periodSelect" aria-label="Periode grafik"><option value="week">7 hari</option><option value="month">30 hari</option></select></div><div class="bar-chart" id="barChart"></div><div class="panel-foot"><span><i class="legend-dot"></i> Energi (kWh)</span><b id="weekTotal">32,4 kWh</b></div></article>
+          <article class="panel device-panel"><div class="panel-heading"><div><h2>Perangkat</h2><p>Ringkasan koneksi</p></div><button class="text-btn" data-goto="devices">Lihat semua ↗</button></div><div class="device-row"><div class="device-symbol">ϟ</div><div class="device-details"><b>Breaker Utama</b><small id="deviceSubtext">Mode demo · status ON</small></div><span class="online-status"><i></i> <span id="deviceConnectionStatus">Demo</span></span></div><div class="device-row"><div class="device-symbol muted-symbol">⌂</div><div class="device-details"><b>Meter Energi</b><small>Data tergantung model</small></div><span class="pending-status">Belum dicek</span></div><div class="device-tip"><span>ⓘ</span><p>Hubungkan akun dan perangkat melalui backend Tuya untuk membaca data asli.</p></div></article>
+        </div>
+        <article class="panel quick-breaker"><div class="quick-breaker-icon">ϟ</div><div class="quick-breaker-copy"><b>SMART BREAKER</b><span>Kontrol melalui Tuya</span><small id="quickControlNote">Kontrol fisik belum diaktifkan</small></div><div class="quick-toggle"><button id="quickOn" class="selected" disabled>ON</button><button id="quickOff" disabled>OFF</button></div></article>
+      </section>
+
+      <section class="page hidden" id="historyPage">
+        <div class="welcome-row"><div><h2>Riwayat energi</h2><p>Ringkasan contoh konsumsi listrik. Data ini bukan pembacaan perangkat.</p></div><div class="history-actions"><button class="delete-all-btn" id="clearDemoHistoryBtn" type="button">Hapus semua demo</button><button class="export-btn" id="exportBtn">⇩ Ekspor CSV</button></div></div>
+        <article class="panel history-panel"><div class="panel-heading"><div><h2>Catatan harian</h2><p>Data simulasi tersimpan di browser ini.</p></div><span class="demo-tag">SIMULASI</span></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Energi</th><th>Rata-rata daya</th><th>Estimasi biaya</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="historyTable"></tbody></table></div></article>
+      </section>
+
+      <section class="page hidden" id="devicesPage">
+        <div class="welcome-row"><div><h2>Perangkat</h2><p>Kelola koneksi Smart Breaker.</p></div><span class="outline-chip">1 PERANGKAT</span></div>
+        <article class="panel device-detail-panel"><div class="device-detail-icon">ϟ</div><div class="device-detail-copy"><span class="overline">TUYA SMART BREAKER</span><h2>Breaker Utama</h2><p id="deviceDetailText">Perangkat belum ditautkan; informasi yang tampil adalah data simulasi.</p><div class="detail-chips"><span id="deviceDetailStatus">● Mode demo</span><span id="deviceDetailApi">API belum dikonfigurasi</span></div></div><button class="primary-btn" id="setupBtn">Cara menghubungkan</button></article>
+        <article class="panel setup-panel"><div class="panel-heading"><div><h2>Langkah integrasi</h2><p>Siapkan koneksi sebelum mengaktifkan kontrol nyata.</p></div></div><ol class="setup-list"><li><b>Pastikan perangkat muncul di Tuya Smart / Smart Life.</b><span>Gunakan akun dan rumah yang benar.</span></li><li><b>Buat project Smart Home Cloud di Tuya Developer Platform.</b><span>Pilih data center sesuai region akun/perangkat, lalu otorisasi layanan yang diperlukan.</span></li><li><b>Hubungkan akun aplikasi dan ambil ID perangkat.</b><span>Pastikan project punya izin membaca status dan mengirim perintah.</span></li><li><b>Petakan data point (DP) perangkat.</b><span>Nama kode untuk switch, tegangan, arus, daya, dan energi berbeda-beda antar model.</span></li><li><b>Masukkan kredensial ke backend server.</b><span>Jangan pernah menaruh Access ID/Secret di HTML atau JavaScript browser.</span></li></ol><a class="docs-link" href="https://developer.tuya.com/en/docs/cloud" target="_blank" rel="noopener">Buka dokumentasi resmi Tuya ↗</a></article>
+      </section>
+
+      <footer><span>VoltGuard <b>•</b> Smart Energy Dashboard</span><span>Status live saat terhubung · Riwayat demo</span></footer>
+    </main>
+  </div>
+  <section class="cloud-login hidden" id="cloudLogin" aria-labelledby="cloudLoginTitle">
+    <article class="cloud-login-card hidden" id="cloudConfigMessage">
+      <span class="overline">KONFIGURASI DIPERLUKAN</span>
+      <h2>Hubungkan Supabase</h2>
+      <p>Dashboard online ini belum dikonfigurasi. Admin perlu mengisi variabel SUPABASE_URL dan SUPABASE_ANON_KEY pada GitHub repository, lalu menjalankan ulang deployment. Data demo dan kontrol perangkat tidak tersedia sebelum konfigurasi selesai.</p>
+    </article>
+    <form class="cloud-login-card" id="loginForm">
+      <span class="overline">AKSES AMAN</span>
+      <h2 id="cloudLoginTitle">Login ke VoltGuard</h2>
+      <p>Gunakan akun yang diizinkan untuk membaca dan mengontrol breaker Anda. Data diperbarui setiap 3 detik saat halaman terbuka.</p>
+      <label for="loginEmail">Email</label>
+      <input id="loginEmail" type="email" autocomplete="username" required>
+      <label for="loginPassword">Kata sandi</label>
+      <input id="loginPassword" type="password" autocomplete="current-password" required>
+      <button class="primary-btn" id="loginSubmit" type="submit">Masuk</button>
+      <p class="login-message" id="loginMessage" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-backdrop hidden" id="confirmModal"><div class="modal"><div class="modal-icon">⚠</div><h2 id="modalTitle">Konfirmasi</h2><p id="modalText">Lanjutkan tindakan ini?</p><div class="modal-actions"><button class="control-btn cancel-btn" id="cancelModal">Batal</button><button class="control-btn on-btn" id="confirmAction">Konfirmasi</button></div></div></div>
+  <script type="module" src="app.js?v=online-3s-v1"></script>
+</body>
+</html>

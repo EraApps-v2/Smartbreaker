@@ -1,0 +1,53 @@
+name: Deploy VoltGuard to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Prepare static site
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" || { echo "Set repository variable SUPABASE_URL."; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "Set repository variable SUPABASE_ANON_KEY."; exit 1; }
+          mkdir -p dist/assets
+          cp index.html styles.css app.js supabase-client.js manifest.webmanifest sw.js dist/
+          cp -R assets/. dist/assets/
+          printf '%s\n' \
+            "export const SUPABASE_URL = $(node -p 'JSON.stringify(process.env.SUPABASE_URL)');" \
+            "export const SUPABASE_ANON_KEY = $(node -p 'JSON.stringify(process.env.SUPABASE_ANON_KEY)');" \
+            > dist/supabase-config.js
+          touch dist/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

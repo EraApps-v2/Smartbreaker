@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "VoltGuard_Smart_Breaker_Tuya_PWA_v2"
+	}
+}

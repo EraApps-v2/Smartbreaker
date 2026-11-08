@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+.supabase/
+node_modules/
+.DS_Store
+.vscode/
