@@ -139,7 +139,11 @@ function metricValue(status, codeName, factorName) {
 
 async function getDeviceOnline(deviceId) {
   if (deviceOnlineCache?.deviceId === deviceId && deviceOnlineCache.expiresAt > Date.now()) {
-    return { online: deviceOnlineCache.online, error: deviceOnlineCache.error };
+    return {
+      online: deviceOnlineCache.online,
+      error: deviceOnlineCache.error,
+      verified: deviceOnlineCache.online !== null
+    };
   }
   const errors = [];
   for (const requestPath of [
@@ -150,7 +154,7 @@ async function getDeviceOnline(deviceId) {
       const details = await authenticatedRequest('GET', requestPath);
       if (typeof details?.online === 'boolean') {
         deviceOnlineCache = { deviceId, online: details.online, error: null, expiresAt: Date.now() + 30000 };
-        return { online: details.online, error: null };
+        return { online: details.online, error: null, verified: true };
       }
       errors.push('Properti online tidak tersedia pada detail perangkat Tuya.');
     } catch (error) {
@@ -160,7 +164,7 @@ async function getDeviceOnline(deviceId) {
   const message = errors.join('; ');
   console.warn('Status online perangkat tidak dapat diverifikasi dari Tuya.', message);
   deviceOnlineCache = { deviceId, online: null, error: message, expiresAt: Date.now() + 30000 };
-  return { online: null, error: message };
+  return { online: null, error: message, verified: false };
 }
 
 function parseSwitch(value) {
@@ -178,10 +182,11 @@ async function getDeviceStatus() {
   if (!Array.isArray(result)) throw new Error('Format status perangkat dari Tuya tidak dikenali.');
   const switchPoint = result.find(item => item.code === settings.switchCode);
   if (!switchPoint) throw new Error(`Data point sakelar "${settings.switchCode}" tidak ditemukan. Periksa TUYA_SWITCH_DP.`);
-  const { online: deviceOnline, error: deviceOnlineError } = await getDeviceOnline(settings.deviceId);
+  const { online: deviceOnline, error: deviceOnlineError, verified: deviceOnlineVerified } = await getDeviceOnline(settings.deviceId);
   return {
     breakerOn: parseSwitch(switchPoint.value),
     deviceOnline,
+    deviceOnlineVerified,
     deviceOnlineError,
     availableDpCodes: result.map(item => item.code).filter(code => typeof code === 'string'),
     values: {

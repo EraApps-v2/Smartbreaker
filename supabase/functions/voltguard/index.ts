@@ -130,9 +130,13 @@ function metricValue(status: Array<{ code: string; value: unknown }>, codeName: 
   return Number.isFinite(factor) ? Number(point.value) * factor : null;
 }
 
-async function getDeviceOnline(deviceId: string): Promise<{ online: boolean | null; error: string | null }> {
+async function getDeviceOnline(deviceId: string): Promise<{ online: boolean | null; error: string | null; verified: boolean }> {
   if (deviceOnlineCache?.deviceId === deviceId && deviceOnlineCache.expiresAt > Date.now()) {
-    return { online: deviceOnlineCache.online, error: deviceOnlineCache.error };
+    return {
+      online: deviceOnlineCache.online,
+      error: deviceOnlineCache.error,
+      verified: deviceOnlineCache.online !== null
+    };
   }
   const errors: string[] = [];
   for (const requestPath of [
@@ -143,7 +147,7 @@ async function getDeviceOnline(deviceId: string): Promise<{ online: boolean | nu
       const details = await authenticatedTuyaRequest('GET', requestPath);
       if (typeof details?.online === 'boolean') {
         deviceOnlineCache = { deviceId, online: details.online, error: null, expiresAt: Date.now() + 30000 };
-        return { online: details.online, error: null };
+        return { online: details.online, error: null, verified: true };
       }
       errors.push('Properti online tidak tersedia pada detail perangkat Tuya.');
     } catch (error) {
@@ -153,7 +157,7 @@ async function getDeviceOnline(deviceId: string): Promise<{ online: boolean | nu
   const message = errors.join('; ');
   console.warn('Status online perangkat tidak dapat diverifikasi dari Tuya.', message);
   deviceOnlineCache = { deviceId, online: null, error: message, expiresAt: Date.now() + 30000 };
-  return { online: null, error: message };
+  return { online: null, error: message, verified: false };
 }
 
 async function getDeviceStatus() {
@@ -166,7 +170,7 @@ async function getDeviceStatus() {
   if (!Array.isArray(result)) throw new Error('Format status perangkat Tuya tidak dikenali.');
   const switchPoint = result.find((item: { code?: string }) => item.code === (env('TUYA_SWITCH_DP') || 'switch'));
   if (!switchPoint) throw new Error('DP sakelar tidak ditemukan. Periksa TUYA_SWITCH_DP.');
-  const { online: deviceOnline, error: deviceOnlineError } = await getDeviceOnline(deviceId);
+  const { online: deviceOnline, error: deviceOnlineError, verified: deviceOnlineVerified } = await getDeviceOnline(deviceId);
   const breakerOn = switchPoint.value === true || switchPoint.value === 1 ||
     switchPoint.value === 'true' || switchPoint.value === 'on'
     ? true
@@ -177,6 +181,7 @@ async function getDeviceStatus() {
   return {
     breakerOn,
     deviceOnline,
+    deviceOnlineVerified,
     deviceOnlineError,
     availableDpCodes: result.map((item: { code?: unknown }) => item.code).filter((code: unknown): code is string => typeof code === 'string'),
     values: {

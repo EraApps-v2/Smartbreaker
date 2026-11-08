@@ -228,7 +228,13 @@ async function refreshTuya(showFeedback=false){
     if(!tuyaConfigured){tuyaConnected=false;tuyaError=null;tuyaValues=null;updateConnection();renderState();if(showFeedback)showToast('Backend Tuya belum dikonfigurasi. Kontrol fisik belum aktif.');return false}
     const data=await callTuya('status');
     if(typeof data.breakerOn!=='boolean')throw new Error('Status sakelar Tuya tidak dikenali. Periksa kode DP.');
-    breakerOn=data.breakerOn;tuyaDeviceOnline=data.deviceOnline??null;tuyaDeviceOnlineError=data.deviceOnlineError||null;tuyaValues=data.values||null;availableDpCodes=Array.isArray(data.availableDpCodes)?data.availableDpCodes:[];tuyaError=null;tuyaConnected=true;lastStatusAt=new Date();
+    breakerOn=data.breakerOn;
+    const onlineVerified=data.deviceOnlineVerified===true&&typeof data.deviceOnline==='boolean';
+    tuyaDeviceOnline=onlineVerified?data.deviceOnline:null;
+    tuyaDeviceOnlineError=onlineVerified?null:data.deviceOnlineError||'Status online pada DP belum diverifikasi oleh Tuya Cloud.';
+    tuyaValues=data.values||null;
+    availableDpCodes=Array.isArray(data.availableDpCodes)?data.availableDpCodes:[];
+    tuyaError=null;tuyaConnected=true;lastStatusAt=new Date();
     if(tuyaDeviceOnline!==false&&tuyaValues?.energy!==null&&tuyaValues?.energy!==undefined)updateDailyEnergy(Number(tuyaValues.energy));
     renderState();updateConnection();
     if(showFeedback)showToast('Status Tuya berhasil diperbarui.');
