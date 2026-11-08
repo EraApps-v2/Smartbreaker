@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase-client.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let breakerOn = true, toastTimer, tuyaConfigured = Boolean(supabaseClient), tuyaConnected = false, tuyaDeviceOnline = null, tuyaValues = null, availableDpCodes = [], commandPending = false, authSession = null, refreshPending = false, lastStatusAt = null, loginOpen = false, loginRequestPending = false;
+let breakerOn = true, toastTimer, tuyaConfigured = Boolean(supabaseClient), tuyaConnected = false, tuyaDeviceOnline = null, tuyaValues = null, tuyaError = null, availableDpCodes = [], commandPending = false, authSession = null, refreshPending = false, lastStatusAt = null, loginOpen = false, loginRequestPending = false;
 const demo = {
   voltage: 220.4, current: 1.94, power: 428, energy: 4.82, tariff: 1444.70,
   week: [3.8,4.6,3.9,5.2,4.1,5.4,5.4],
@@ -130,13 +130,13 @@ function renderState(){
   $('#metricsSubtext').textContent=tuyaConnected
     ?tuyaDeviceOnline===false?'Perangkat offline; data live tidak tersedia'
       :missingMetrics?`Kode DP metrik belum cocok. DP Tuya: ${availableDpCodes.slice(0,12).join(', ')||'tidak ada'}`:'Data langsung dari perangkat'
-    :tuyaConfigured?'Data belum tersedia saat breaker offline':'Nilai contoh untuk pratinjau desain';
+    :tuyaConfigured?tuyaError?`Koneksi Tuya gagal: ${tuyaError}`:'Data belum tersedia saat breaker offline':'Nilai contoh untuk pratinjau desain';
   $('#quickOn').classList.toggle('selected',stateKnown&&breakerOn);
   $('#quickOff').classList.toggle('selected',stateKnown&&!breakerOn);
   $('#deviceDetailText').textContent=tuyaConnected&&tuyaDeviceOnline===false
     ?'Cloud Tuya terjangkau, tetapi perangkat melaporkan offline. Data dan kontrol dinonaktifkan.'
     :tuyaConnected?'Breaker terhubung. Status dibaca langsung dari Tuya.'
-    :tuyaConfigured?'Breaker belum terhubung. Periksa konfigurasi dan koneksi backend.'
+    :tuyaConfigured?tuyaError?`Koneksi backend gagal: ${tuyaError}`:'Breaker belum terhubung. Periksa konfigurasi dan koneksi backend.'
       :'Perangkat belum ditautkan; informasi yang tampil adalah data simulasi.';
   $('#deviceDetailStatus').textContent=tuyaConnected?(tuyaDeviceOnline===false?'● Perangkat offline':'● Terhubung'):tuyaConfigured?'● Offline':'● Mode demo';
   $('#deviceDetailApi').textContent=tuyaConnected&&tuyaDeviceOnline!==false
@@ -153,7 +153,7 @@ function renderState(){
 function updateConnection(){
   const online=tuyaConnected&&tuyaDeviceOnline!==false;
   $('#connectionTitle').textContent=tuyaConnected&&tuyaDeviceOnline===false?'Perangkat Tuya offline':online?'Terhubung ke Tuya':tuyaConfigured?'Tuya belum tersambung':'Mode demo';
-  $('#connectionSubtext').textContent=online?'Pembaruan otomatis tiap 3 detik':tuyaConnected?'API terhubung; perangkat offline':tuyaConfigured?'Periksa koneksi backend dan akun Tuya':'Belum terhubung ke Tuya';
+  $('#connectionSubtext').textContent=online?'Pembaruan otomatis tiap 3 detik':tuyaConnected?'API terhubung; perangkat offline':tuyaConfigured?tuyaError||'Periksa koneksi backend dan akun Tuya':'Belum terhubung ke Tuya';
   $('#deviceConnectionStatus').textContent=online?'Online':tuyaConnected?'Perangkat offline':tuyaConfigured?'Offline':'Demo';
   $('#liveStatus').textContent=online?'TUYA LIVE':tuyaConnected?'DEVICE OFFLINE':tuyaConfigured?'TUYA OFFLINE':'DEMO DATA';
   updateControls();
@@ -223,16 +223,16 @@ async function refreshTuya(showFeedback=false){
       if(!configResponse.ok)throw new Error(configData.error||'Backend tidak dapat dihubungi.');
       tuyaConfigured=configData.configured===true;
     }
-    if(!tuyaConfigured){tuyaConnected=false;tuyaValues=null;updateConnection();renderState();if(showFeedback)showToast('Backend Tuya belum dikonfigurasi. Kontrol fisik belum aktif.');return false}
+    if(!tuyaConfigured){tuyaConnected=false;tuyaError=null;tuyaValues=null;updateConnection();renderState();if(showFeedback)showToast('Backend Tuya belum dikonfigurasi. Kontrol fisik belum aktif.');return false}
     const data=await callTuya('status');
     if(typeof data.breakerOn!=='boolean')throw new Error('Status sakelar Tuya tidak dikenali. Periksa kode DP.');
-    breakerOn=data.breakerOn;tuyaDeviceOnline=data.deviceOnline??null;tuyaValues=data.values||null;availableDpCodes=Array.isArray(data.availableDpCodes)?data.availableDpCodes:[];tuyaConnected=true;lastStatusAt=new Date();
+    breakerOn=data.breakerOn;tuyaDeviceOnline=data.deviceOnline??null;tuyaValues=data.values||null;availableDpCodes=Array.isArray(data.availableDpCodes)?data.availableDpCodes:[];tuyaError=null;tuyaConnected=true;lastStatusAt=new Date();
     if(tuyaDeviceOnline!==false&&tuyaValues?.energy!==null&&tuyaValues?.energy!==undefined)updateDailyEnergy(Number(tuyaValues.energy));
     renderState();updateConnection();
     if(showFeedback)showToast('Status Tuya berhasil diperbarui.');
     return true;
   }catch(error){
-    if(tuyaConfigured){tuyaConnected=false;updateConnection();renderState()}
+    if(tuyaConfigured){tuyaError=error instanceof Error?error.message:String(error);tuyaConnected=false;updateConnection();renderState()}
     if(showFeedback)showToast(error.message);
     return false;
   }finally{

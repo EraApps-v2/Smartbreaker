@@ -75,6 +75,11 @@ AKSES JARAK JAUH DENGAN SUPABASE
   faktor skalanya. Secrets juga harus berisi ALLOWED_USER_ID (UUID akun pemilik)
   dan APP_ORIGINS (origin persis, misalnya https://akun.github.io, tanpa path).
   Jangan mengaktifkan pendaftaran publik setelah akun pemilik dibuat.
+- Jika dashboard menampilkan `clientId is invalid`, perbarui TUYA_ACCESS_ID dan
+  TUYA_ACCESS_SECRET di Supabase Secrets menggunakan kredensial aktif dari project
+  Tuya Cloud yang sama. Jangan kirim Access Secret melalui chat. Pastikan project
+  Tuya menggunakan data center yang sama dengan TUYA_REGION dan telah diberi izin
+  API serta akses ke perangkat.
 - Variabel SUPABASE_URL dan SUPABASE_ANON_KEY tersedia otomatis untuk Edge Function.
   Jangan mengatur atau menaruh service-role key di frontend.
 - Dari folder proyek, login dan tautkan Supabase CLI, lalu deploy fungsi:
