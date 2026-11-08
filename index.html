@@ -98,11 +98,33 @@
       <label for="loginPassword">Kata sandi</label>
       <input id="loginPassword" type="password" autocomplete="current-password" required>
       <button class="primary-btn" id="loginSubmit" type="submit">Masuk</button>
+      <button class="text-btn" id="forgotPasswordBtn" type="button">Lupa kata sandi?</button>
       <p class="login-message" id="loginMessage" role="status" aria-live="polite"></p>
+    </form>
+    <form class="cloud-login-card hidden" id="recoveryRequestForm">
+      <span class="overline">PEMULIHAN AKUN</span>
+      <h2>Atur ulang kata sandi</h2>
+      <p>Masukkan email akun VoltGuard. Jika terdaftar, tautan pemulihan akan dikirim melalui email.</p>
+      <label for="recoveryEmail">Email</label>
+      <input id="recoveryEmail" type="email" autocomplete="username" required>
+      <button class="primary-btn" id="recoverySubmit" type="submit">Kirim tautan pemulihan</button>
+      <button class="text-btn" id="backToLoginBtn" type="button">Kembali ke login</button>
+      <p class="login-message" id="recoveryMessage" role="status" aria-live="polite"></p>
+    </form>
+    <form class="cloud-login-card hidden" id="passwordRecoveryForm">
+      <span class="overline">PEMULIHAN AKUN</span>
+      <h2>Buat kata sandi baru</h2>
+      <p>Masukkan kata sandi baru untuk akun VoltGuard Anda.</p>
+      <label for="newPassword">Kata sandi baru</label>
+      <input id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+      <label for="confirmNewPassword">Ulangi kata sandi baru</label>
+      <input id="confirmNewPassword" type="password" autocomplete="new-password" minlength="8" required>
+      <button class="primary-btn" id="passwordRecoverySubmit" type="submit">Simpan kata sandi baru</button>
+      <p class="login-message" id="passwordRecoveryMessage" role="status" aria-live="polite"></p>
     </form>
   </section>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="modal-backdrop hidden" id="confirmModal"><div class="modal"><div class="modal-icon">⚠</div><h2 id="modalTitle">Konfirmasi</h2><p id="modalText">Lanjutkan tindakan ini?</p><div class="modal-actions"><button class="control-btn cancel-btn" id="cancelModal">Batal</button><button class="control-btn on-btn" id="confirmAction">Konfirmasi</button></div></div></div>
-  <script type="module" src="app.js?v=online-3s-v1"></script>
+  <script type="module" src="app.js?v=online-password-recovery-v1"></script>
 </body>
 </html>

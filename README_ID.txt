@@ -84,6 +84,8 @@ AKSES JARAK JAUH DENGAN SUPABASE
   persis sama dengan salah satu origin APP_ORIGINS. Fungsi memvalidasi JWT dan
   hanya menerima UUID akun yang diizinkan.
 - Setelah workflow selesai, buka dashboard dan login dengan akun pemilik.
+  Jika lupa kata sandi, pilih "Lupa kata sandi?" pada dashboard, gunakan tautan
+  yang dikirim ke email, lalu tetapkan kata sandi baru pada halaman VoltGuard.
   Status Tuya diperiksa setiap 3 detik selama tab dashboard terbuka dan terlihat.
   Ini polling, bukan push instan; dapat mencapai 28.800 pembacaan status per hari
   untuk satu tab yang terus aktif dan bisa terkena batas/kuota Tuya atau Supabase.

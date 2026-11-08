@@ -2,7 +2,7 @@ import { supabaseClient } from './supabase-client.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-let breakerOn = true, toastTimer, tuyaConfigured = Boolean(supabaseClient), tuyaConnected = false, tuyaDeviceOnline = null, tuyaValues = null, availableDpCodes = [], commandPending = false, authSession = null, refreshPending = false, lastStatusAt = null;
+let breakerOn = true, toastTimer, tuyaConfigured = Boolean(supabaseClient), tuyaConnected = false, tuyaDeviceOnline = null, tuyaValues = null, availableDpCodes = [], commandPending = false, authSession = null, refreshPending = false, lastStatusAt = null, passwordRecoveryMode = new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery', recoveryRequestMode = false;
 const demo = {
   voltage: 220.4, current: 1.94, power: 428, energy: 4.82, tariff: 1444.70,
   week: [3.8,4.6,3.9,5.2,4.1,5.4,5.4],
@@ -164,8 +164,11 @@ function updateControls(){
 function updateAuthUi(){
   const loginPanel=$('#cloudLogin');
   const isHosted=httpsLocation();
-  if(loginPanel)loginPanel.classList.toggle('hidden',!isHosted&&(!supabaseClient||Boolean(authSession)));
-  $('#loginForm')?.classList.toggle('hidden',!supabaseClient);
+  const hideAuthPanel=!supabaseClient||Boolean(authSession)&&!passwordRecoveryMode;
+  if(loginPanel)loginPanel.classList.toggle('hidden',isHosted?hideAuthPanel:!supabaseClient||Boolean(authSession));
+  $('#loginForm')?.classList.toggle('hidden',!supabaseClient||Boolean(authSession)||passwordRecoveryMode||recoveryRequestMode);
+  $('#recoveryRequestForm')?.classList.toggle('hidden',!supabaseClient||Boolean(authSession)||passwordRecoveryMode||!recoveryRequestMode);
+  $('#passwordRecoveryForm')?.classList.toggle('hidden',!supabaseClient||!passwordRecoveryMode);
   const configMessage=$('#cloudConfigMessage');
   if(configMessage)configMessage.classList.toggle('hidden',!isHosted||Boolean(supabaseClient));
   const logoutButton=$('#logoutBtn');
@@ -371,7 +374,63 @@ $('#loginForm')?.addEventListener('submit',async event=>{
     $('#loginPassword').value='';
     message.textContent='';
   }catch(error){
-    message.textContent=error.message||'Login gagal. Periksa email dan kata sandi.';
+    message.textContent=error.message?.toLowerCase().includes('invalid login credentials')
+      ?'Email atau kata sandi tidak cocok. Gunakan “Lupa kata sandi?” untuk membuat kata sandi baru.'
+      :error.message||'Login gagal. Periksa email dan kata sandi.';
+  }finally{
+    submit.disabled=false;
+  }
+});
+$('#forgotPasswordBtn')?.addEventListener('click',()=>{
+  recoveryRequestMode=true;
+  $('#recoveryEmail').value=$('#loginEmail').value.trim();
+  $('#recoveryMessage').textContent='';
+  updateAuthUi();
+});
+$('#backToLoginBtn')?.addEventListener('click',()=>{
+  recoveryRequestMode=false;
+  updateAuthUi();
+});
+$('#recoveryRequestForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const submit=$('#recoverySubmit');
+  const message=$('#recoveryMessage');
+  submit.disabled=true;
+  message.textContent='Mengirim tautan pemulihan...';
+  try{
+    const {error}=await supabaseClient.auth.resetPasswordForEmail($('#recoveryEmail').value.trim(),{
+      redirectTo:`${location.origin}${location.pathname}`
+    });
+    if(error)throw error;
+    message.textContent='Jika email terdaftar, tautan pemulihan akan dikirim. Periksa kotak masuk dan folder spam.';
+  }catch(error){
+    message.textContent=`Gagal mengirim tautan pemulihan: ${error.message}`;
+  }finally{
+    submit.disabled=false;
+  }
+});
+$('#passwordRecoveryForm')?.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const submit=$('#passwordRecoverySubmit');
+  const message=$('#passwordRecoveryMessage');
+  const password=$('#newPassword').value;
+  if(password!==$('#confirmNewPassword').value){
+    message.textContent='Konfirmasi kata sandi tidak sama.';
+    return;
+  }
+  submit.disabled=true;
+  message.textContent='Menyimpan kata sandi baru...';
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password});
+    if(error)throw error;
+    $('#newPassword').value='';
+    $('#confirmNewPassword').value='';
+    passwordRecoveryMode=false;
+    recoveryRequestMode=false;
+    message.textContent='Kata sandi berhasil diperbarui. Anda sudah masuk ke dashboard.';
+    updateAuthUi();
+  }catch(error){
+    message.textContent=`Gagal memperbarui kata sandi: ${error.message}`;
   }finally{
     submit.disabled=false;
   }
@@ -389,7 +448,8 @@ if(supabaseClient){
   applyUserSettings(authSession);
   updateAuthUi();
   if(authSession)refreshTuya(false);
-  supabaseClient.auth.onAuthStateChange((_event,nextSession)=>{
+  supabaseClient.auth.onAuthStateChange((event,nextSession)=>{
+    if(event==='PASSWORD_RECOVERY')passwordRecoveryMode=true;
     authSession=nextSession;
     applyUserSettings(authSession);
     tuyaConnected=false;
